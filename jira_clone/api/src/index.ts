@@ -1,16 +1,17 @@
-import 'module-alias/register';
-import 'dotenv/config';
-import 'reflect-metadata';
-import express from 'express';
 import cors from 'cors';
+import 'dotenv/config';
+import express from 'express';
+import 'module-alias/register';
+import 'reflect-metadata';
 
 import createDatabaseConnection from 'database/createConnection';
-import { addRespondToResponse } from 'middleware/response';
+import { RouteNotFoundError } from 'errors';
 import { authenticateUser } from 'middleware/authentication';
 import { handleError } from 'middleware/errors';
-import { RouteNotFoundError } from 'errors';
+import { addRespondToResponse } from 'middleware/response';
 
-import { attachPublicRoutes, attachPrivateRoutes } from './routes';
+import { AddressInfo } from 'net';
+import { attachPrivateRoutes, attachPublicRoutes } from './routes';
 
 const establishDatabaseConnection = async (): Promise<void> => {
   try {
@@ -24,8 +25,8 @@ const initializeExpress = (): void => {
   const app = express();
 
   app.use(cors());
-  app.use(express.json());
-  app.use(express.urlencoded());
+  app.use(express.json({}));
+  app.use(express.urlencoded({ extended: true }));
 
   app.use(addRespondToResponse);
 
@@ -38,11 +39,14 @@ const initializeExpress = (): void => {
   app.use((req, _res, next) => next(new RouteNotFoundError(req.originalUrl)));
   app.use(handleError);
 
-  app.listen(process.env.PORT || 3000);
+  const server = app.listen(process.env.PORT || 3000, function() {
+    console.log(`Express server listening on port ${(server.address() as AddressInfo).port}`);
+  });
 };
 
 const initializeApp = async (): Promise<void> => {
   await establishDatabaseConnection();
+  console.log('Connected to DB successfully');
   initializeExpress();
 };
 
